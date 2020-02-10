@@ -9,6 +9,7 @@ Attributes:
 import torch
 from ROOT import TFile
 from ax.service.managed_loop import optimize
+from ax.plot.contour import plot_contour
 from ax.plot.trace import optimization_trace_single_method
 from ax.utils.notebook.plotting import render
 from torch.utils.data import DataLoader
@@ -192,12 +193,16 @@ if __name__ == '__main__':
             {"name": "dropout", "type": "range", "bounds": [0.01, 0.5], "log_scale": True},
             {"name": "training_split", "type": "range", "bounds": [0.7, 0.9], "log_scale": True},
             # {"name": "intrinsic_dimensions", "type": "range", "bounds": [256, 2048], "log_scale": False},
-            {"name": "batch_size", "type": "choice", "values": [32, 64, 128, 256, 512]},
+            # {"name": "batch_size", "type": "choice", "values": [32, 64, 128, 256, 512]},
         ],
         evaluation_function=train_evaluate,
         objective_name='accuracy',
+        # generation_strategy=ax.models.random.sobol.SobolGenerator,
     )
     # import pdb; pdb.set_trace()
+
+    render(plot_contour(model=model, param_x='lr', param_y='training_split', metric_name='accuracy'))
+
     print(best_parameters, values[0])
     best_objectives = np.array([[trial.objective_mean * 100 for trial in experiment.trials.values()]])
     best_objective_plot = optimization_trace_single_method(
