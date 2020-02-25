@@ -3,7 +3,6 @@ import torch.nn as nn
 from torch.nn import init
 import torch.nn.functional as F
 import math
-from .BaseModel import BaseModel
 
 
 class MAB(nn.Module):
@@ -23,6 +22,7 @@ class MAB(nn.Module):
             self.ln1 = nn.LayerNorm(dim_V)
         self.fc_o = nn.Linear(dim_V, dim_V)
 
+    @torch.jit.script_method
     def forward(self, Q, K):
         Q = self.fc_q(Q)
         K, V = self.fc_k(K), self.fc_v(K)
@@ -58,6 +58,7 @@ class SAB(nn.Module):
         super(SAB, self).__init__()
         self.mab = MAB(dim_in, dim_in, dim_out, num_heads, ln=ln)
 
+    @torch.jit.script_method
     def forward(self, X):
         return self.mab(X, X)
 
@@ -84,6 +85,7 @@ class ISAB(nn.Module):
         self.mab0 = MAB(dim_out, dim_in, dim_out, num_heads, ln=ln)
         self.mab1 = MAB(dim_in, dim_out, dim_out, num_heads, ln=ln)
 
+    @torch.jit.script_method
     def forward(self, X):
         H = self.mab0(self.inducing_pts.repeat(X.size(0), 1, 1), X)
         return self.mab1(X, H)
@@ -108,6 +110,7 @@ class PMA(nn.Module):
         init.xavier_uniform_(self.S)
         self.mab = MAB(dim, dim, dim, num_heads, ln=ln)
 
+    @torch.jit.script_method
     def forward(self, X):
         return self.mab(self.S.repeat(X.size(0), 1, 1), X)
 
@@ -149,11 +152,12 @@ class SetTransformer(nn.Module):
             nn.Linear(dim_hidden, dim_output),
         )
 
+    @torch.jit.script_method
     def forward(self, X):
         return self.dec(self.enc(X))
 
 
-class Model(BaseModel):
+class Model(nn.Module):
     """
     Set Transformer model class inheriting structure from BaseModel
     """
@@ -171,9 +175,9 @@ class Model(BaseModel):
             self.device
         )
 
-    def prep_for_forward(self, batch):
+    def mock_prep_for_forward(self):
         """
-        Preps data for passing through the net
+        Preps dummy data for passing through the net
         Args:
             track_info: variable length information about the track
             lepton_info: fixed length information about the lepton
@@ -183,10 +187,6 @@ class Model(BaseModel):
         Returns:
             prepared data
         """
-
-        import pdb
-
-        pdb.set_trace()
         track_info = batch["track_info"]
         track_length = batch["track_length"]
         lepton_info = batch["lepton_info"]
@@ -199,6 +199,7 @@ class Model(BaseModel):
 
         return track_info, track_length, lepton_info, calo_info, calo_length
 
+    @torch.jit.script_method
     def forward(self, input_batch):
         r"""Takes prepared data and passes it through the set transformer
             * Set transformer for track and calorimeter information

@@ -8,7 +8,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from ROOT import TFile
-import onnxruntime
+
 
 from .Architectures.RNN import RNN_Model, GRU_Model, LSTM_Model
 from .Architectures.DeepSets import Model as DeepSets_Model
@@ -46,17 +46,13 @@ class Isolation_Agent:
             Returns:
                 train_loader, test_loader
             """
-            # load data files
-
-            print("Loading data")
-            data_file = TFile(data_filename)
-            data_tree = getattr(data_file, self.options["tree_name"])
-            n_events = data_tree.GetEntries()
-            data_file.Close()  # we want each ROOT_Dataset to open its own file and extract its own tree
 
             # perform class balancing
             print("Balancing classes")
-            event_indices = np.array(range(n_events))
+            dummy_dataset = ROOT_Dataset(
+                data_filename, None, self.options, shuffle_indices=False
+            )
+            event_indices = dummy_dataset.get_readable_events()
             full_dataset = ROOT_Dataset(
                 data_filename, event_indices, self.options, shuffle_indices=False
             )
@@ -237,34 +233,34 @@ class Isolation_Agent:
 
         if self.options["save_model"]:
             print("Saving model")
-            dummy_test_batch = self.model.prep_for_forward(next(iter(self.test_loader)))
-            input_names = list(dummy_test_batch.keys())
-            dynamic_axes = {}
-            for name in input_names:
-                dynamic_axes[name] = {0: "batch_size"}
-            dynamic_axes["output"] = {0: "batch_size"}
+            # dummy_test_batch = self.model.prep_for_forward(next(iter(self.test_loader)))
+            # input_names = list(dummy_test_batch.keys())
+            # dynamic_axes = {}
+            # for name in input_names:
+            #     dynamic_axes[name] = {0: "batch_size"}
+            # dynamic_axes["output"] = {0: "batch_size"}
 
-            self.model.eval()
-            torch.onnx.export(
-                self.model,
-                dummy_test_batch,
-                "test.onnx",
-                verbose=False,
-                export_params=True,
-                do_constant_folding=True,
-                input_names=input_names,
-                output_names=["output"],
-                dynamic_axes=dynamic_axes,
-            )
+            # self.model.eval()
+            # torch.onnx.export(
+            #     self.model,
+            #     dummy_test_batch,
+            #     "test.onnx",
+            #     verbose=False,
+            #     export_params=True,
+            #     do_constant_folding=True,
+            #     input_names=input_names,
+            #     output_names=["output"],
+            #     dynamic_axes=dynamic_axes,
+            # )
 
-            session = onnxruntime.InferenceSession("test.onnx")
+            # session = onnxruntime.InferenceSession("test.onnx")
 
-            print("Testing saved model")
-            inputs = {}
-            for name in input_names:
-                inputs[name] = dummy_test_batch[name].cpu().numpy()
-            outputs = session.run(None, inputs)
-            print(outputs)
+            # print("Testing saved model")
+            # inputs = {}
+            # for name in input_names:
+            #     inputs[name] = dummy_test_batch[name].cpu().numpy()
+            # outputs = session.run(None, inputs)
+            # print(outputs)
 
 
 def train(options):

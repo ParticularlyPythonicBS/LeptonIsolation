@@ -31,14 +31,20 @@ class BaseModel(nn.Module):
         self.rnn_dropout = options["dropout"]
         self.device = options["device"]
         self.h_0 = nn.Parameter(
-            torch.zeros(
-                self.n_layers, self.batch_size, self.hidden_size
-            ).to(self.device)
+            torch.zeros(self.n_layers, self.batch_size, self.hidden_size).to(
+                self.device
+            )
         )
 
-        self.fc_pooled = nn.Linear(self.hidden_size * 3, self.hidden_size).to(self.device)
-        self.fc_trk_cal = nn.Linear(self.hidden_size * 2, self.hidden_size).to(self.device)
-        self.fc_final = nn.Linear(self.hidden_size + self.n_lep_features, self.output_size).to(self.device)
+        self.fc_pooled = nn.Linear(self.hidden_size * 3, self.hidden_size).to(
+            self.device
+        )
+        self.fc_trk_cal = nn.Linear(self.hidden_size * 2, self.hidden_size).to(
+            self.device
+        )
+        self.fc_final = nn.Linear(
+            self.hidden_size + self.n_lep_features, self.output_size
+        ).to(self.device)
         self.relu_final = nn.ReLU(inplace=True)
         self.dropout = nn.Dropout(p=options["dropout"])
         self.softmax = nn.Softmax(dim=1).to(self.device)
@@ -110,7 +116,13 @@ class BaseModel(nn.Module):
         Returns:
             the probability of particle beng prompt or heavy flavor
         """
-        padded_track_seq, padded_cal_seq, sorted_indices_tracks, sorted_indices_cal, lepton_info = input_batch
+        (
+            padded_track_seq,
+            padded_cal_seq,
+            sorted_indices_tracks,
+            sorted_indices_cal,
+            lepton_info,
+        ) = input_batch
         print("Unimplemented net - please implement in child")
         exit()
 
@@ -121,7 +133,9 @@ class BaseModel(nn.Module):
         calo_info = batch["calo_info"]
         calo_length = batch["calo_length"]
 
-        untrimmed_output_track, untrimmed_hidden_track = self.trk_rnn(track_info, self.h_0)
+        untrimmed_output_track, untrimmed_hidden_track = self.trk_rnn(
+            track_info, self.h_0
+        )
         untrimmed_output_calo, untrimmed_hidden_calo = self.cal_rnn(calo_info, self.h_0)
 
         out_tracks = self.trim_rnn_outputs(untrimmed_output_track, track_length)
@@ -139,7 +153,9 @@ class BaseModel(nn.Module):
 
     def concat_pooling(self, output_rnn, hidden_rnn):
         # Concat pooling idea from: https://arxiv.org/pdf/1801.06146.pdf
-        output_rnn = output_rnn.permute(0, 2, 1)  # converted to BxHxW, W=#words B=batch_size H=#neurons_hidden_layer
+        output_rnn = output_rnn.permute(
+            0, 2, 1
+        )  # converted to BxHxW, W=#words B=batch_size H=#neurons_hidden_layer
         # hidden_rnn already in form LxBxH, L=#layers
         avg_pool_rnn = F.adaptive_avg_pool1d(output_rnn, 1).view(-1, self.hidden_size)
         max_pool_rnn = F.adaptive_max_pool1d(output_rnn, 1).view(-1, self.hidden_size)
@@ -148,8 +164,12 @@ class BaseModel(nn.Module):
         return out_rnns
 
     def trim_rnn_outputs(self, output_rnn, sentence_length):
-        output_rnn = output_rnn.permute(0, 2, 1)  # converted to BxHxW, W=#words B=batch_size H=hidden_size
-        trimmed_out = output_rnn[range(output_rnn.shape[0]), :, (sentence_length-1).tolist()]
+        output_rnn = output_rnn.permute(
+            0, 2, 1
+        )  # converted to BxHxW, W=#words B=batch_size H=hidden_size
+        trimmed_out = output_rnn[
+            range(output_rnn.shape[0]), :, (sentence_length - 1).tolist()
+        ]
         return trimmed_out
 
     def do_train(self, batches, do_training=True):
@@ -196,8 +216,12 @@ class BaseModel(nn.Module):
             predicted = torch.round(output)
 
             accuracy = float(
-                np.array((predicted.data.cpu().detach() ==
-                          truth.data.cpu().detach()).sum().float() / len(truth))
+                np.array(
+                    (predicted.data.cpu().detach() == truth.data.cpu().detach())
+                    .sum()
+                    .float()
+                    / len(truth)
+                )
             )
             total_acc += accuracy
             raw_results += output.cpu().detach().tolist()
