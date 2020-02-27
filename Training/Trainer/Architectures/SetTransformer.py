@@ -212,7 +212,7 @@ class Model(BaseModel):
 
         transformed_trk = self.trk_SetTransformer(track_info)
         transformed_calo = self.calo_SetTransformer(calo_info)
-        out = self.output_layer(torch.cat([transformed_trk, transformed_calo], axis=2))
+        out = self.output_layer(torch.cat([transformed_trk, transformed_calo], dim=2))
         out = out[:, 0]
         out = self.fc_final(torch.cat([out, lepton_info], dim=1))
         out = self.relu_final(out)

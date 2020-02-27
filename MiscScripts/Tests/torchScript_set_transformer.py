@@ -9,7 +9,7 @@ Testing script for using torchScript for set transformers
 """
 
 
-class MAB(nn.Module):
+class MAB(torch.jit.ScriptModule):
     """
     Multihead Attention block as described in https://arxiv.org/pdf/1810.00825.pdf
     """
@@ -26,6 +26,7 @@ class MAB(nn.Module):
             self.ln1 = nn.LayerNorm(dim_V)
         self.fc_o = nn.Linear(dim_V, dim_V)
 
+    @torch.jit.script_method
     def forward(self, Q, K):
         Q = self.fc_q(Q)
         K, V = self.fc_k(K), self.fc_v(K)
@@ -43,7 +44,7 @@ class MAB(nn.Module):
         return out
 
 
-class SAB(nn.Module):
+class SAB(torch.jit.ScriptModule):
     """
     Set Attention Block (permutation equivariant)
     SAB(X) := MAB(X,X)
@@ -61,11 +62,12 @@ class SAB(nn.Module):
         super(SAB, self).__init__()
         self.mab = MAB(dim_in, dim_in, dim_out, num_heads, ln=ln)
 
+    @torch.jit.script_method
     def forward(self, X):
         return self.mab(X, X)
 
 
-class ISAB(nn.Module):
+class ISAB(torch.jit.ScriptModule):
     """
     Induced Set Attention Block (permutation equivariant)
     ISAB(X) = MAB(X,H) ∈ R^{n×d}, where H = MAB(I,X) ∈ R^{m×d}
@@ -87,12 +89,13 @@ class ISAB(nn.Module):
         self.mab0 = MAB(dim_out, dim_in, dim_out, num_heads, ln=ln)
         self.mab1 = MAB(dim_in, dim_out, dim_out, num_heads, ln=ln)
 
+    @torch.jit.script_method
     def forward(self, X):
         H = self.mab0(self.inducing_pts.repeat(X.size(0), 1, 1), X)
         return self.mab1(X, H)
 
 
-class PMA(nn.Module):
+class PMA(torch.jit.ScriptModule):
     """
     Pooling by multihead attention (permutation invariant)
     PMAk(Z) = MAB(S,rFF(Z))
@@ -111,11 +114,12 @@ class PMA(nn.Module):
         init.xavier_uniform_(self.S)
         self.mab = MAB(dim, dim, dim, num_heads, ln=ln)
 
+    @torch.jit.script_method
     def forward(self, X):
         return self.mab(self.S.repeat(X.size(0), 1, 1), X)
 
 
-class SetTransformer(nn.Module):
+class SetTransformer(torch.jit.ScriptModule):
     """
     Set transformer consisting of an encoder and decoder
     """
@@ -152,18 +156,19 @@ class SetTransformer(nn.Module):
             nn.Linear(dim_hidden, dim_output),
         )
 
+    @torch.jit.script_method
     def forward(self, X):
         return self.dec(self.enc(X))
 
 
-class Model(nn.Module):
+class Model(torch.jit.ScriptModule):
     """
     Set Transformer model class
     """
 
     def __init__(self):
-        super().__init__()
-        self.device = torch.device("cuda")
+        super(Model, self).__init__()
+        # self.device = torch.device("cpu")
         self.num_heads = 1
         self.hidden_size = 12
         self.n_trk_features = 6
@@ -172,16 +177,16 @@ class Model(nn.Module):
         self.output_size = 2
         self.trk_SetTransformer = SetTransformer(
             self.n_trk_features, num_outputs=self.num_heads, dim_output=self.hidden_size
-        ).to(self.device)
+        )  # .to(self.device)
         self.calo_SetTransformer = SetTransformer(
             self.n_calo_features, self.num_heads, self.hidden_size
-        ).to(self.device)
-        self.output_layer = nn.Linear(self.hidden_size * 2, self.hidden_size).to(
-            self.device
-        )
+        )  # .to(self.device)
+        self.output_layer = nn.Linear(
+            self.hidden_size * 2, self.hidden_size
+        )  # .to(self.device)
         self.fc_final = nn.Linear(
             self.hidden_size + self.n_lep_features, self.output_size
-        ).to(self.device)
+        )  # .to(self.device)
         self.relu_final = nn.ReLU(inplace=True)
         self.dropout = nn.Dropout(p=0.3)
         self.softmax = nn.Softmax(dim=1)
@@ -204,12 +209,13 @@ class Model(nn.Module):
         calo_info = dummy_data.dummy_batch["calo_info"]
         calo_length = dummy_data.dummy_batch["calo_length"]
 
-        track_info = track_info.to(self.device)
-        lepton_info = lepton_info.to(self.device)
-        calo_info = calo_info.to(self.device)
+        track_info = track_info  # .to(self.device)
+        lepton_info = lepton_info  # .to(self.device)
+        calo_info = calo_info  # .to(self.device)
 
         return track_info, track_length, lepton_info, calo_info, calo_length
 
+    @torch.jit.script_method
     def forward(self, track_info, track_length, lepton_info, calo_info, calo_length):
         r"""Takes prepared data and passes it through the set transformer
             * Set transformer for track and calorimeter information
@@ -235,6 +241,9 @@ class Model(nn.Module):
 
         return out
 
+    def save_to_pytorch(self, output_path):
+        torch.jit.save(self, output_path)
+
 
 if __name__ == "__main__":
     # Testing
@@ -247,9 +256,14 @@ if __name__ == "__main__":
         calo_info,
         calo_length,
     ) = model.mock_prep_for_forward()
-    torch.jit.script(
+    script = torch.jit.trace(
         model, (track_info, track_length, lepton_info, calo_info, calo_length)
     )
 
+    model.save_to_pytorch("test_set_transformer.zip")
 
-# TODO: code currently works for native execution, torch script requires debugging, torch.cat doesnt work
+    # script.save('set_transformer.zip')
+
+    loaded = torch.jit.load("test_set_transformer.zip")
+
+    print(loaded)
