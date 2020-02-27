@@ -84,6 +84,7 @@ class Model(nn.Module):
         self.loss_function = nn.BCEWithLogitsLoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
 
+    @torch.jit.ignore
     def mock_prep_for_forward(self):
         """
         Preps dummy data for passing through the net
@@ -125,7 +126,6 @@ class Model(nn.Module):
 
         return prepped_batch
 
-    # @torch.jit.script_method
     def forward(self, padded_track_seq, padded_cal_seq, lepton_info):
 
         self.trk_rnn.flatten_parameters()

@@ -184,9 +184,6 @@ class Model(BaseModel):
             prepared data
         """
 
-        import pdb
-
-        pdb.set_trace()
         track_info = batch["track_info"]
         track_length = batch["track_length"]
         lepton_info = batch["lepton_info"]
