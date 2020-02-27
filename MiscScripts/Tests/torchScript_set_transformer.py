@@ -226,12 +226,12 @@ class Model(nn.Module):
 
         transformed_trk = self.trk_SetTransformer(track_info)
         transformed_calo = self.calo_SetTransformer(calo_info)
-        out = torch.cat(list((transformed_trk, transformed_calo)), axis=2)
-        # out = self.output_layer(out)
-        # out = out[:, 0]
-        # out = self.fc_final(torch.cat([out, lepton_info], dim=1))
-        # out = self.relu_final(out)
-        # out = self.softmax(out)
+        out = torch.cat(list((transformed_trk, transformed_calo)), dim=2)
+        out = self.output_layer(out)
+        out = out[:, 0]
+        out = self.fc_final(torch.cat([out, lepton_info], dim=1))
+        out = self.relu_final(out)
+        out = self.softmax(out)
 
         return out
 
@@ -240,5 +240,16 @@ if __name__ == "__main__":
     # Testing
     model = Model()
     print(model(*model.mock_prep_for_forward()))
+    (
+        track_info,
+        track_length,
+        lepton_info,
+        calo_info,
+        calo_length,
+    ) = model.mock_prep_for_forward()
+    torch.jit.script(
+        model, (track_info, track_length, lepton_info, calo_info, calo_length)
+    )
+
 
 # TODO: code currently works for native execution, torch script requires debugging, torch.cat doesnt work
