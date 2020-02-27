@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     options = {}
 
-    options["input_data"] = "/public/data/RNN/Samples/InclusivePt/small_data.root"
+    options["input_data"] = "/public/data/RNN/Samples/InclusivePt/large_data.root"
     assert path.exists(options["input_data"]) is True, "invalid input_data path"
     options["run_location"] = "/public/data/RNN/runs"
     options["run_label"] = "anil_set_test"
@@ -68,8 +68,8 @@ if __name__ == "__main__":
         "trk_vtx_type",
     ]
     options["training_split"] = 0.7
-    options["batch_size"] = 10
-    options["n_epochs"] = 30
+    options["batch_size"] = 32
+    options["n_epochs"] = 100
     options["n_layers"] = 3
     options["hidden_neurons"] = 256
     options["intrinsic_dimensions"] = 1024  # only matters for deep sets
