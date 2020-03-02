@@ -14,6 +14,11 @@ class MAB(torch.jit.ScriptModule):
     Multihead Attention block as described in https://arxiv.org/pdf/1810.00825.pdf
     """
 
+    __constants__ = [
+        "num_heads",
+        "dim_V",
+    ]
+
     def __init__(self, dim_Q, dim_K, dim_V, num_heads, ln=False):
         super(MAB, self).__init__()
         self.dim_V = dim_V
@@ -166,15 +171,24 @@ class Model(torch.jit.ScriptModule):
     Set Transformer model class
     """
 
+    __constants__ = [
+        "hidden_size",
+        "num_heads",
+        "n_trk_features",
+        "n_calo_features",
+        "n_lep_features",
+        "output_size",
+    ]
+
     def __init__(self):
         super(Model, self).__init__()
         # self.device = torch.device("cpu")
-        self.num_heads = 1
-        self.hidden_size = 12
-        self.n_trk_features = 6
-        self.n_calo_features = 6
-        self.n_lep_features = 10
-        self.output_size = 2
+        self.num_heads: Final[int] = 1
+        self.hidden_size: Final[int] = 12
+        self.n_trk_features: Final[int] = 6
+        self.n_calo_features: Final[int] = 6
+        self.n_lep_features: Final[int] = 10
+        self.output_size: Final[int] = 2
         self.trk_SetTransformer = SetTransformer(
             self.n_trk_features, num_outputs=self.num_heads, dim_output=self.hidden_size
         )  # .to(self.device)
@@ -256,7 +270,7 @@ if __name__ == "__main__":
         calo_info,
         calo_length,
     ) = model.mock_prep_for_forward()
-    script = torch.jit.trace(
+    script = torch.jit.script(
         model, (track_info, track_length, lepton_info, calo_info, calo_length)
     )
 
