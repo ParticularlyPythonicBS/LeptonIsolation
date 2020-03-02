@@ -67,13 +67,14 @@ if __name__ == "__main__":
     ]
     options["training_split"] = 0.7
     options["batch_size"] = 32
-    options["n_epochs"] = 100
+    options["n_epochs"] = 10
     options["n_layers"] = 3
     options["hidden_neurons"] = 256
     options["intrinsic_dimensions"] = 1024  # only matters for deep sets
     options["output_neurons"] = 2
     options["device"] = args.device
-    options["save_model"] = False
+    options["save_model"] = True
+    options["model_save_path"] = options["output_folder"] + "test_model.zip"
 
     t0 = time.time()
     print("number of epochs planned:", options["n_epochs"])
