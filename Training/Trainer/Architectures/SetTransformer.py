@@ -6,10 +6,15 @@ import math
 from .BaseModel import BaseModel
 
 
-class MAB(nn.Module):
+class MAB(torch.jit.ScriptModule):
     """
     Multihead Attention block as described in https://arxiv.org/pdf/1810.00825.pdf
     """
+
+    __constants__ = [
+        "num_heads",
+        "dim_V",
+    ]
 
     def __init__(self, dim_Q, dim_K, dim_V, num_heads, ln=False):
         super(MAB, self).__init__()
@@ -23,6 +28,7 @@ class MAB(nn.Module):
             self.ln1 = nn.LayerNorm(dim_V)
         self.fc_o = nn.Linear(dim_V, dim_V)
 
+    @torch.jit.script_method
     def forward(self, Q, K):
         Q = self.fc_q(Q)
         K, V = self.fc_k(K), self.fc_v(K)
@@ -34,13 +40,13 @@ class MAB(nn.Module):
 
         A = torch.softmax(Q_.bmm(K_.transpose(1, 2)) / math.sqrt(self.dim_V), 2)
         out = torch.cat((Q_ + A.bmm(V_)).split(Q.size(0), 0), 2)
-        out = out if getattr(self, "ln0", None) is None else self.ln0(out)
+        out = out  # if getattr(self, "ln0", None) is None else self.ln0(out)
         out = out + F.relu(self.fc_o(out))
-        out = out if getattr(self, "ln1", None) is None else self.ln1(out)
+        out = out  # if getattr(self, "ln1", None) is None else self.ln1(out)
         return out
 
 
-class SAB(nn.Module):
+class SAB(torch.jit.ScriptModule):
     """
     Set Attention Block (permutation equivariant)
     SAB(X) := MAB(X,X)
@@ -58,11 +64,12 @@ class SAB(nn.Module):
         super(SAB, self).__init__()
         self.mab = MAB(dim_in, dim_in, dim_out, num_heads, ln=ln)
 
+    @torch.jit.script_method
     def forward(self, X):
         return self.mab(X, X)
 
 
-class ISAB(nn.Module):
+class ISAB(torch.jit.ScriptModule):
     """
     Induced Set Attention Block (permutation equivariant)
     ISAB(X) = MAB(X,H) ∈ R^{n×d}, where H = MAB(I,X) ∈ R^{m×d}
@@ -84,12 +91,13 @@ class ISAB(nn.Module):
         self.mab0 = MAB(dim_out, dim_in, dim_out, num_heads, ln=ln)
         self.mab1 = MAB(dim_in, dim_out, dim_out, num_heads, ln=ln)
 
+    @torch.jit.script_method
     def forward(self, X):
         H = self.mab0(self.inducing_pts.repeat(X.size(0), 1, 1), X)
         return self.mab1(X, H)
 
 
-class PMA(nn.Module):
+class PMA(torch.jit.ScriptModule):
     """
     Pooling by multihead attention (permutation invariant)
     PMAk(Z) = MAB(S,rFF(Z))
@@ -108,11 +116,12 @@ class PMA(nn.Module):
         init.xavier_uniform_(self.S)
         self.mab = MAB(dim, dim, dim, num_heads, ln=ln)
 
+    @torch.jit.script_method
     def forward(self, X):
         return self.mab(self.S.repeat(X.size(0), 1, 1), X)
 
 
-class SetTransformer(nn.Module):
+class SetTransformer(torch.jit.ScriptModule):
     """
     Set transformer consisting of an encoder and decoder
     """
@@ -149,6 +158,7 @@ class SetTransformer(nn.Module):
             nn.Linear(dim_hidden, dim_output),
         )
 
+    @torch.jit.script_method
     def forward(self, X):
         return self.dec(self.enc(X))
 
@@ -157,6 +167,8 @@ class Model(BaseModel):
     """
     Set Transformer model class inheriting structure from BaseModel
     """
+
+    __constants__ = ["num_heads"]
 
     def __init__(self, options):
         super().__init__(options)
@@ -171,6 +183,7 @@ class Model(BaseModel):
             self.device
         )
 
+    @torch.jit.ignore
     def prep_for_forward(self, batch):
         """
         Preps data for passing through the net
@@ -196,7 +209,8 @@ class Model(BaseModel):
 
         return track_info, track_length, lepton_info, calo_info, calo_length
 
-    def forward(self, input_batch):
+    @torch.jit.script_method
+    def forward(self, track_info, track_length, lepton_info, calo_info, calo_length):
         r"""Takes prepared data and passes it through the set transformer
             * Set transformer for track and calorimeter information
             * Combine set transformer output with lepton information
@@ -208,7 +222,7 @@ class Model(BaseModel):
         Returns:
             the probability of particle beng prompt or heavy flavor
         """
-        track_info, track_length, lepton_info, calo_info, calo_length = input_batch
+        # track_info, track_length, lepton_info, calo_info, calo_length = input_batch
 
         transformed_trk = self.trk_SetTransformer(track_info)
         transformed_calo = self.calo_SetTransformer(calo_info)

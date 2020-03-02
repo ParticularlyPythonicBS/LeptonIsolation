@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     options = {}
 
-    options["input_data"] = "/public/data/RNN/Samples/InclusivePt/large_data.root"
+    options["input_data"] = "/public/data/RNN/Samples/InclusivePt/small_data.root"
     assert path.exists(options["input_data"]) is True, "invalid input_data path"
     options["run_location"] = "/public/data/RNN/runs"
     options["run_label"] = "anil_set_test"
@@ -43,9 +43,7 @@ if __name__ == "__main__":
     options["output_folder"] = "./Outputs/"
     options["model_path"] = options["output_folder"] + "saved_model.pt"
     options["continue_training"] = args.continue_training
-    options[
-        "architecture_type"
-    ] = "SetTransformer"  # RNN, LSTM, GRU, DeepSets, SetTransformer
+    options["architecture_type"] = "GRU"  # RNN, LSTM, GRU, DeepSets, SetTransformer
     options["dropout"] = 0.3
     options[
         "track_ordering"

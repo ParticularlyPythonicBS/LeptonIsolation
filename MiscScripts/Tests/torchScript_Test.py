@@ -17,34 +17,6 @@ PackedSequence_.__annotations__ = {
     "unsorted_indices": Optional[torch.Tensor],
 }
 
-# class GRU_Model(torch.jit.ScriptModule):
-#     """
-#     Basic pytorch gated recurrent unit model
-#     """
-
-#     def __init__(self, options):
-#         super().__init__(options)
-#         self.trk_rnn = nn.GRU(
-#             input_size=self.n_trk_features,
-#             hidden_size=self.hidden_size,
-#             batch_first=True,
-#             num_layers=self.n_layers,
-#             dropout=self.rnn_dropout,
-#             bidirectional=False,
-#         ).to(self.device)
-#         self.cal_rnn = nn.GRU(
-#             input_size=self.n_calo_features,
-#             hidden_size=self.hidden_size,
-#             batch_first=True,
-#             num_layers=self.n_layers,
-#             dropout=self.rnn_dropout,
-#             bidirectional=False,
-#         ).to(self.device)
-
-#     @torch.jit.script_method
-#     def forward(self, batch):
-#         return self.recurrent_forward(batch)
-
 
 class Model(torch.jit.ScriptModule):
     """
@@ -183,7 +155,7 @@ class Model(torch.jit.ScriptModule):
         out = self.relu_final(out)
         out = self.softmax(out)
 
-        return output_track  # , output_cal
+        return out
 
     @torch.jit.script_method
     def concat_pooling(self, output_rnn, hidden_rnn):
@@ -217,8 +189,6 @@ if __name__ == "__main__":
 
     model.to(torch.device("cuda"))
     model.save_to_pytorch("test_gru_gpu.zip")
-
-    # script.save('set_transformer.zip')
 
     loaded = torch.jit.load("test_gru_gpu.zip")
 
