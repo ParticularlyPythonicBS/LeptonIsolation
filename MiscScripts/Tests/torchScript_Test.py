@@ -3,9 +3,19 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import torch.nn.functional as F
 from torch._jit_internal import Optional
+from collections import namedtuple
 
-# import typing
+PackedSequence_ = namedtuple(
+    "PackedSequence", ["data", "batch_sizes", "sorted_indices", "unsorted_indices"]
+)
 
+# type annotation for PackedSequence_ to make it compatible with TorchScript
+PackedSequence_.__annotations__ = {
+    "data": torch.Tensor,
+    "batch_sizes": torch.Tensor,
+    "sorted_indices": Optional[torch.Tensor],
+    "unsorted_indices": Optional[torch.Tensor],
+}
 
 # class GRU_Model(torch.jit.ScriptModule):
 #     """
@@ -144,7 +154,12 @@ class Model(torch.jit.ScriptModule):
         return padded_track_seq, padded_cal_seq, lepton_info
 
     @torch.jit.script_method
-    def forward(self, padded_track_seq, padded_cal_seq, lepton_info):
+    def forward(
+        self,
+        padded_track_seq: PackedSequence_,
+        padded_cal_seq: PackedSequence_,
+        lepton_info,
+    ):
 
         # self.trk_rnn.flatten_parameters()
         # self.cal_rnn.flatten_parameters()
@@ -152,21 +167,21 @@ class Model(torch.jit.ScriptModule):
         output_track, hidden_track = self.trk_rnn(padded_track_seq, self.h_0)
         output_cal, hidden_cal = self.cal_rnn(padded_cal_seq, self.h_0)
 
-        # output_track, lengths_track = pad_packed_sequence(
-        #     output_track, batch_first=False
-        # )
-        # output_cal, lengths_cal = pad_packed_sequence(output_cal, batch_first=False)
+        output_track, lengths_track = pad_packed_sequence(
+            output_track, batch_first=False
+        )
+        output_cal, lengths_cal = pad_packed_sequence(output_cal, batch_first=False)
 
-        # out_cal = self.concat_pooling(output_cal, hidden_cal)
-        # out_tracks = self.concat_pooling(output_track, hidden_track)
+        out_cal = self.concat_pooling(output_cal, hidden_cal)
+        out_tracks = self.concat_pooling(output_track, hidden_track)
 
-        # # combining rnn outputs
-        # out = self.fc_trk_cal(torch.cat([out_cal, out_tracks], dim=1))
-        # F.relu_(out)
-        # out = self.dropout(out)
-        # out = self.fc_final(torch.cat([out, lepton_info], dim=1))
-        # out = self.relu_final(out)
-        # out = self.softmax(out)
+        # combining rnn outputs
+        out = self.fc_trk_cal(torch.cat([out_cal, out_tracks], dim=1))
+        F.relu_(out)
+        out = self.dropout(out)
+        out = self.fc_final(torch.cat([out, lepton_info], dim=1))
+        out = self.relu_final(out)
+        out = self.softmax(out)
 
         return output_track  # , output_cal
 
@@ -197,14 +212,14 @@ if __name__ == "__main__":
     # Testing
     model = Model()
     print(model(*model.mock_prep_for_forward()))
-    # (
-    #     padded_track_seq,
-    #     padded_cal_seq,
-    #     lepton_info,
-    # ) = model.mock_prep_for_forward()
-    # script = torch.jit.trace(
-    #     model, (padded_track_seq, padded_cal_seq, lepton_info)
-    # )
+    (padded_track_seq, padded_cal_seq, lepton_info,) = model.mock_prep_for_forward()
+    script = torch.jit.trace(model, (padded_track_seq, padded_cal_seq, lepton_info))
 
+    model.to(torch.device("cuda"))
+    model.save_to_pytorch("test_gru_gpu.zip")
 
-# TODO: code currently works for native execution, torch script requires debugging
+    # script.save('set_transformer.zip')
+
+    loaded = torch.jit.load("test_gru_gpu.zip")
+
+    print(loaded)
