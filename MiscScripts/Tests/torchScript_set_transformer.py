@@ -260,10 +260,11 @@ if __name__ == "__main__":
         model, (track_info, track_length, lepton_info, calo_info, calo_length)
     )
 
-    model.save_to_pytorch("test_set_transformer.zip")
+    model.to(torch.device("cuda"))
+    model.save_to_pytorch("test_set_transformer_gpu.zip")
 
     # script.save('set_transformer.zip')
 
-    loaded = torch.jit.load("test_set_transformer.zip")
+    loaded = torch.jit.load("test_set_transformer_gpu.zip")
 
     print(loaded)
