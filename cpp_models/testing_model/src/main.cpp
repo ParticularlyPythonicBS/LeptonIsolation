@@ -36,7 +36,8 @@ int main(int argc, const char* argv[]) {
    tree->GetEntry(0);
    TBranch *pT = tree->GetBranch("calo_cluster_pT");
    std::vector<float> calo_cluster_pT;
-   tree->SetBranchAddress("calo_cluster_pT", &calo_cluster_pT);
+   tree->Print();
+   // tree->SetBranchAddress("calo_cluster_pT", *calo_cluster_pT);
    // Create a TTreeReader for the tree, for instance by passing the
    // TTree's name and the TDirectory / TFile it is in.
    // TTreeReader myReader("NormalizedTree", f);
