@@ -36,13 +36,13 @@ int main(int argc, const char* argv[]) {
    tree->GetEntry(0);
    TBranch *pT = tree->GetBranch("calo_cluster_pT");
    std::vector<float> calo_cluster_pT;
-   tree->Print();
+   // tree->Print();
    // tree->SetBranchAddress("calo_cluster_pT", *calo_cluster_pT);
    // Create a TTreeReader for the tree, for instance by passing the
    // TTree's name and the TDirectory / TFile it is in.
    // TTreeReader myReader("NormalizedTree", f);
    // // The branch "px" contains floats; access them as myPx.
    // TTreeReaderValue<float> calo_cluster_pT(myReader, "calo_cluster_pT");
-   std::cout<<calo_cluster_pT << "ok\n";
+   std::cout<< calo_cluster_pT<< "ok\n";
   return 0;
 }
